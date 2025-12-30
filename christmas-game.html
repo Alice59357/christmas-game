@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圣诞接礼物游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #0c1445 0%, #1a237e 50%, #283593 100%);
+            min-height: 100vh;
+        }
+
+        /* 雪花效果 */
+        .snowflake {
+            position: fixed;
+            color: white;
+            font-size: 1em;
+            top: -20px;
+            animation: fall linear infinite;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+
+        /* 游戏容器 */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 开始界面 */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        #start-screen h1 {
+            font-size: 3.5em;
+            color: #ff6b6b;
+            text-shadow: 3px 3px 0 #2d5a27,
+                         -1px -1px 0 #2d5a27,
+                         0 0 20px rgba(255, 107, 107, 0.5);
+            margin-bottom: 20px;
+            animation: titlePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes titlePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .christmas-tree {
+            font-size: 100px;
+            margin: 20px 0;
+            animation: treeSway 3s ease-in-out infinite;
+        }
+
+        @keyframes treeSway {
+            0%, 100% { transform: rotate(-2deg); }
+            50% { transform: rotate(2deg); }
+        }
+
+        #start-btn, #restart-btn {
+            padding: 20px 60px;
+            font-size: 1.5em;
+            background: linear-gradient(145deg, #c62828, #b71c1c);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #7f0000, 0 15px 20px rgba(0, 0, 0, 0.35);
+            transition: all 0.1s;
+            margin-top: 30px;
+        }
+
+        #start-btn:hover, #restart-btn:hover {
+            transform: translateY(2px);
+            box-shadow: 0 6px 0 #7f0000, 0 10px 15px rgba(0, 0, 0, 0.35);
+        }
+
+        #start-btn:active, #restart-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #7f0000, 0 5px 10px rgba(0, 0, 0, 0.35);
+        }
+
+        /* 游戏画面 */
+        #game-area {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 100px);
+            display: none;
+        }
+
+        /* 顶部状态栏 */
+        #status-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        .status-item {
+            font-size: 1.5em;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #score {
+            color: #ffd700;
+        }
+
+        #lives {
+            color: #ff6b6b;
+        }
+
+        #timer {
+            color: #81d4fa;
+        }
+
+        /* 圣诞老人(玩家) */
+        #santa {
+            position: absolute;
+            bottom: 20px;
+            width: 100px;
+            height: 100px;
+            font-size: 80px;
+            text-align: center;
+            line-height: 100px;
+            transition: left 0.05s linear;
+            z-index: 5;
+            filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.3));
+        }
+
+        /* 掉落物品 */
+        .falling-item {
+            position: absolute;
+            font-size: 50px;
+            animation: itemFall linear forwards;
+            z-index: 3;
+        }
+
+        @keyframes itemFall {
+            to {
+                transform: translateY(calc(100vh - 150px));
+            }
+        }
+
+        /* 地面装饰 */
+        #ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(to bottom, #e8f5e9 0%, #c8e6c9 100%);
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            padding-bottom: 10px;
+        }
+
+        .tree-decoration {
+            font-size: 60px;
+        }
+
+        /* 得分动画 */
+        .score-popup {
+            position: absolute;
+            font-size: 1.5em;
+            font-weight: bold;
+            animation: scoreFloat 1s ease-out forwards;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .score-popup.positive {
+            color: #4caf50;
+        }
+
+        .score-popup.negative {
+            color: #f44336;
+        }
+
+        @keyframes scoreFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1.5);
+            }
+        }
+
+        /* 游戏结束界面 */
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+        }
+
+        #game-over h2 {
+            font-size: 3em;
+            color: #ffd700;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #final-score {
+            font-size: 2em;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .result-emoji {
+            font-size: 80px;
+            margin: 20px 0;
+            animation: bounce 0.5s ease infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        /* 说明文字 */
+        .instructions {
+            color: #b0bec5;
+            font-size: 1.1em;
+            margin-top: 20px;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        /* 连击显示 */
+        #combo {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2em;
+            color: #ff9800;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 15;
+        }
+
+        #combo.show {
+            opacity: 1;
+            animation: comboShake 0.3s ease;
+        }
+
+        @keyframes comboShake {
+            0%, 100% { transform: translateX(-50%) rotate(0); }
+            25% { transform: translateX(-50%) rotate(-5deg); }
+            75% { transform: translateX(-50%) rotate(5deg); }
+        }
+
+        /* 移动端控制按钮 */
+        .mobile-controls {
+            position: absolute;
+            bottom: 120px;
+            width: 100%;
+            display: none;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 10;
+        }
+
+        .control-btn {
+            width: 80px;
+            height: 80px;
+            font-size: 2em;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid white;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: flex;
+            }
+
+            #start-screen h1 {
+                font-size: 2em;
+            }
+
+            .christmas-tree {
+                font-size: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 开始界面 -->
+        <div id="start-screen">
+            <h1>🎄 圣诞接礼物 🎄</h1>
+            <div class="christmas-tree">🎅</div>
+            <p class="instructions">
+                使用 ← → 方向键 或 A/D 键移动圣诞老人<br>
+                接住礼物🎁得分，避开炸弹💣<br>
+                在60秒内获得尽可能多的分数！
+            </p>
+            <button id="start-btn">开始游戏</button>
+        </div>
+
+        <!-- 游戏区域 -->
+        <div id="game-area">
+            <div id="status-bar">
+                <div class="status-item">🎁 分数: <span id="score">0</span></div>
+                <div class="status-item">❤️ 生命: <span id="lives">3</span></div>
+                <div class="status-item">⏱️ 时间: <span id="timer">60</span>s</div>
+            </div>
+            <div id="combo"></div>
+            <div id="santa">🎅</div>
+            <div id="ground">
+                <span class="tree-decoration">🎄</span>
+                <span class="tree-decoration">⛄</span>
+                <span class="tree-decoration">🎄</span>
+                <span class="tree-decoration">🦌</span>
+                <span class="tree-decoration">🎄</span>
+            </div>
+            <div class="mobile-controls">
+                <button class="control-btn" id="left-btn">⬅️</button>
+                <button class="control-btn" id="right-btn">➡️</button>
+            </div>
+        </div>
+
+        <!-- 游戏结束界面 -->
+        <div id="game-over">
+            <div class="result-emoji" id="result-emoji">🎉</div>
+            <h2>游戏结束!</h2>
+            <div id="final-score">最终得分: 0</div>
+            <div id="rank"></div>
+            <button id="restart-btn">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        // 游戏配置
+        const CONFIG = {
+            gameDuration: 60,
+            initialLives: 3,
+            santaSpeed: 15,
+            spawnInterval: 800,
+            minSpawnInterval: 400,
+            itemFallDuration: 3000,
+            minFallDuration: 1500
+        };
+
+        // 掉落物品类型
+        const ITEMS = [
+            { emoji: '🎁', points: 10, type: 'gift' },
+            { emoji: '🎀', points: 5, type: 'gift' },
+            { emoji: '🍪', points: 15, type: 'gift' },
+            { emoji: '🥛', points: 15, type: 'gift' },
+            { emoji: '⭐', points: 25, type: 'star' },
+            { emoji: '🔔', points: 20, type: 'gift' },
+            { emoji: '🍬', points: 8, type: 'gift' },
+            { emoji: '💣', points: -30, type: 'bomb' },
+            { emoji: '🧊', points: -15, type: 'ice' }
+        ];
+
+        // 游戏状态
+        let gameState = {
+            score: 0,
+            lives: CONFIG.initialLives,
+            timeLeft: CONFIG.gameDuration,
+            isRunning: false,
+            santaX: 0,
+            combo: 0,
+            itemsCaught: 0
+        };
+
+        // DOM 元素
+        const startScreen = document.getElementById('start-screen');
+        const gameArea = document.getElementById('game-area');
+        const gameOver = document.getElementById('game-over');
+        const santa = document.getElementById('santa');
+        const scoreDisplay = document.getElementById('score');
+        const livesDisplay = document.getElementById('lives');
+        const timerDisplay = document.getElementById('timer');
+        const comboDisplay = document.getElementById('combo');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const resultEmoji = document.getElementById('result-emoji');
+        const rankDisplay = document.getElementById('rank');
+
+        // 按键状态
+        let keys = { left: false, right: false };
+        let gameLoop, spawnLoop, timerLoop;
+
+        // 创建雪花
+        function createSnowflakes() {
+            const snowflakes = ['❄', '❅', '❆', '✻', '✼'];
+            for (let i = 0; i < 50; i++) {
+                const snowflake = document.createElement('div');
+                snowflake.className = 'snowflake';
+                snowflake.textContent = snowflakes[Math.floor(Math.random() * snowflakes.length)];
+                snowflake.style.left = Math.random() * 100 + 'vw';
+                snowflake.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                snowflake.style.animationDelay = Math.random() * 5 + 's';
+                snowflake.style.opacity = Math.random() * 0.7 + 0.3;
+                snowflake.style.fontSize = (Math.random() * 15 + 10) + 'px';
+                document.body.appendChild(snowflake);
+            }
+        }
+
+        // 初始化游戏
+        function initGame() {
+            gameState = {
+                score: 0,
+                lives: CONFIG.initialLives,
+                timeLeft: CONFIG.gameDuration,
+                isRunning: true,
+                santaX: window.innerWidth / 2 - 50,
+                combo: 0,
+                itemsCaught: 0
+            };
+
+            santa.style.left = gameState.santaX + 'px';
+            updateDisplay();
+
+            // 清除旧的掉落物
+            document.querySelectorAll('.falling-item').forEach(item => item.remove());
+            document.querySelectorAll('.score-popup').forEach(popup => popup.remove());
+        }
+
+        // 更新显示
+        function updateDisplay() {
+            scoreDisplay.textContent = gameState.score;
+            livesDisplay.textContent = '❤️'.repeat(gameState.lives);
+            timerDisplay.textContent = gameState.timeLeft;
+        }
+
+        // 开始游戏
+        function startGame() {
+            startScreen.style.display = 'none';
+            gameArea.style.display = 'block';
+            gameOver.style.display = 'none';
+            initGame();
+
+            // 游戏主循环
+            gameLoop = setInterval(updateGame, 16);
+
+            // 生成物品
+            spawnLoop = setInterval(spawnItem, getCurrentSpawnInterval());
+
+            // 倒计时
+            timerLoop = setInterval(() => {
+                gameState.timeLeft--;
+                timerDisplay.textContent = gameState.timeLeft;
+
+                if (gameState.timeLeft <= 0) {
+                    endGame();
+                }
+
+                // 逐渐加快生成速度
+                clearInterval(spawnLoop);
+                spawnLoop = setInterval(spawnItem, getCurrentSpawnInterval());
+            }, 1000);
+        }
+
+        // 获取当前生成间隔
+        function getCurrentSpawnInterval() {
+            const progress = 1 - (gameState.timeLeft / CONFIG.gameDuration);
+            return CONFIG.spawnInterval - (CONFIG.spawnInterval - CONFIG.minSpawnInterval) * progress;
+        }
+
+        // 获取当前下落速度
+        function getCurrentFallDuration() {
+            const progress = 1 - (gameState.timeLeft / CONFIG.gameDuration);
+            return CONFIG.itemFallDuration - (CONFIG.itemFallDuration - CONFIG.minFallDuration) * progress;
+        }
+
+        // 生成掉落物品
+        function spawnItem() {
+            if (!gameState.isRunning) return;
+
+            const item = ITEMS[Math.floor(Math.random() * ITEMS.length)];
+            const element = document.createElement('div');
+            element.className = 'falling-item';
+            element.textContent = item.emoji;
+            element.dataset.points = item.points;
+            element.dataset.type = item.type;
+
+            const x = Math.random() * (window.innerWidth - 50);
+            element.style.left = x + 'px';
+            element.style.top = '60px';
+            element.style.animationDuration = getCurrentFallDuration() + 'ms';
+
+            gameArea.appendChild(element);
+
+            // 物品落地后移除
+            setTimeout(() => {
+                if (element.parentNode) {
+                    element.remove();
+                }
+            }, getCurrentFallDuration());
+        }
+
+        // 更新游戏
+        function updateGame() {
+            if (!gameState.isRunning) return;
+
+            // 移动圣诞老人
+            if (keys.left) {
+                gameState.santaX = Math.max(0, gameState.santaX - CONFIG.santaSpeed);
+            }
+            if (keys.right) {
+                gameState.santaX = Math.min(window.innerWidth - 100, gameState.santaX + CONFIG.santaSpeed);
+            }
+            santa.style.left = gameState.santaX + 'px';
+
+            // 碰撞检测
+            checkCollisions();
+        }
+
+        // 碰撞检测
+        function checkCollisions() {
+            const santaRect = santa.getBoundingClientRect();
+            const items = document.querySelectorAll('.falling-item');
+
+            items.forEach(item => {
+                const itemRect = item.getBoundingClientRect();
+
+                // 检测碰撞
+                if (isColliding(santaRect, itemRect)) {
+                    const points = parseInt(item.dataset.points);
+                    const type = item.dataset.type;
+
+                    if (type === 'bomb' || type === 'ice') {
+                        // 击中炸弹或冰块
+                        gameState.lives--;
+                        gameState.combo = 0;
+                        showScorePopup(itemRect.left, itemRect.top, points, false);
+
+                        if (gameState.lives <= 0) {
+                            endGame();
+                        }
+                    } else {
+                        // 接到礼物
+                        gameState.combo++;
+                        gameState.itemsCaught++;
+                        const comboBonus = Math.floor(gameState.combo / 5) * 5;
+                        const totalPoints = points + comboBonus;
+                        gameState.score += totalPoints;
+                        showScorePopup(itemRect.left, itemRect.top, totalPoints, true);
+
+                        // 显示连击
+                        if (gameState.combo >= 3) {
+                            showCombo();
+                        }
+                    }
+
+                    item.remove();
+                    updateDisplay();
+                }
+            });
+        }
+
+        // 碰撞检测辅助函数
+        function isColliding(rect1, rect2) {
+            return rect1.left < rect2.right &&
+                   rect1.right > rect2.left &&
+                   rect1.top < rect2.bottom &&
+                   rect1.bottom > rect2.top;
+        }
+
+        // 显示得分弹出
+        function showScorePopup(x, y, points, positive) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup ' + (positive ? 'positive' : 'negative');
+            popup.textContent = (positive ? '+' : '') + points;
+            popup.style.left = x + 'px';
+            popup.style.top = y + 'px';
+            gameArea.appendChild(popup);
+
+            setTimeout(() => popup.remove(), 1000);
+        }
+
+        // 显示连击
+        function showCombo() {
+            comboDisplay.textContent = `🔥 ${gameState.combo} 连击! 🔥`;
+            comboDisplay.classList.add('show');
+            setTimeout(() => comboDisplay.classList.remove('show'), 1000);
+        }
+
+        // 结束游戏
+        function endGame() {
+            gameState.isRunning = false;
+            clearInterval(gameLoop);
+            clearInterval(spawnLoop);
+            clearInterval(timerLoop);
+
+            gameArea.style.display = 'none';
+            gameOver.style.display = 'flex';
+
+            finalScoreDisplay.textContent = `最终得分: ${gameState.score}`;
+
+            // 评级
+            let rank, emoji;
+            if (gameState.score >= 500) {
+                rank = '🏆 圣诞大师!';
+                emoji = '🎅';
+            } else if (gameState.score >= 300) {
+                rank = '🥇 圣诞达人!';
+                emoji = '🎄';
+            } else if (gameState.score >= 150) {
+                rank = '🥈 礼物收集者';
+                emoji = '🎁';
+            } else if (gameState.score >= 50) {
+                rank = '🥉 圣诞新手';
+                emoji = '⭐';
+            } else {
+                rank = '需要更多练习...';
+                emoji = '❄️';
+            }
+
+            rankDisplay.textContent = rank;
+            rankDisplay.style.fontSize = '1.5em';
+            rankDisplay.style.color = '#ffd700';
+            rankDisplay.style.marginBottom = '20px';
+            resultEmoji.textContent = emoji;
+        }
+
+        // 键盘事件
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = true;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = true;
+            }
+            if (e.key === ' ' && startScreen.style.display !== 'none') {
+                startGame();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = false;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = false;
+            }
+        });
+
+        // 移动端触摸控制
+        const leftBtn = document.getElementById('left-btn');
+        const rightBtn = document.getElementById('right-btn');
+
+        leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; });
+        leftBtn.addEventListener('touchend', () => { keys.left = false; });
+        rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; });
+        rightBtn.addEventListener('touchend', () => { keys.right = false; });
+
+        // 按钮事件
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+
+        // 窗口大小改变时调整圣诞老人位置
+        window.addEventListener('resize', () => {
+            if (gameState.isRunning) {
+                gameState.santaX = Math.min(gameState.santaX, window.innerWidth - 100);
+                santa.style.left = gameState.santaX + 'px';
+            }
+        });
+
+        // 初始化雪花
+        createSnowflakes();
+    </script>
+</body>
+</html>
